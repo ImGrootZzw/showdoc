@@ -1,0 +1,36 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Example Only Test",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost"
+    }
+  ],
+  "paths": {
+    "/no-schema": {
+      "get": {
+        "summary": "Example Only",
+        "description": "Only example, no schema",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 200,
+                  "msg": "ok",
+                  "items": [
+                    {"id": 1, "name": "test"}
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

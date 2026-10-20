@@ -1,0 +1,51 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Multiple Content Types Test",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost"
+    }
+  ],
+  "paths": {
+    "/multi-content": {
+      "get": {
+        "summary": "Multi Content Type",
+        "description": "Multiple content types in response",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "description": "状态码"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "description": "消息"
+                    }
+                  }
+                },
+                "example": {
+                  "code": 0,
+                  "msg": "ok"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

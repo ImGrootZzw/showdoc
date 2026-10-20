@@ -1,0 +1,73 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "RunAPI Import Probe Swagger2",
+    "version": "1.0.0"
+  },
+  "host": "{{manage}}",
+  "basePath": "/",
+  "schemes": [
+    "http"
+  ],
+  "paths": {
+    "/probe/swagger2": {
+      "get": {
+        "summary": "Swagger2 definitions 测试",
+        "description": "Swagger2 definitions 测试",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": {
+              "$ref": "#/definitions/ProbeResponse"
+            },
+            "examples": {
+              "application/json": {
+                "code": 200,
+                "msg": "success",
+                "data": {
+                  "id": 1,
+                  "name": "测试名称"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "ProbeResponse": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "description": "状态码说明"
+        },
+        "msg": {
+          "type": "string",
+          "description": "提示信息说明"
+        },
+        "data": {
+          "$ref": "#/definitions/ProbeData"
+        }
+      }
+    },
+    "ProbeData": {
+      "type": "object",
+      "description": "数据对象说明",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "ID说明"
+        },
+        "name": {
+          "type": "string",
+          "description": "名称说明"
+        }
+      }
+    }
+  }
+}

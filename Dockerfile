@@ -1,15 +1,15 @@
-FROM  richarvey/nginx-php-fpm:1.5.3
-COPY ./ /var/www/html/
+FROM  webdevops/php-nginx:8.3-alpine
 
-RUN apk update
-RUN apk add openldap-dev
-RUN docker-php-ext-install ldap
+## 构建时环境变量 docker build --build-arg=IN_CHINA=true .
+ARG IN_CHINA=false
 
-RUN chmod -R 777 /var/www/html/
-RUN mkdir /showdoc_data
-RUN mkdir /showdoc_data/html
-RUN cp -R /var/www/html/ /showdoc_data/
-RUN apk add --update nodejs nodejs-npm
-RUN mv /showdoc_data/html/mock/ /showdoc_data/mock
-RUN (cd /showdoc_data/mock/ && npm install )
-CMD if [ ! -f "/var/www/html/index.php" ]; then \cp -fr /showdoc_data/html/ /var/www/ ;fi;chmod 777 -R /var/www/ ;(sleep 60 && cd /showdoc_data/mock/ && npm run start) & /start.sh
+# 环境变量
+ENV SHOWDOC_DOCKER_VERSION=3.4.1
+ENV IN_CHINA=${IN_CHINA}
+
+WORKDIR /showdoc_data/html
+COPY . .
+
+RUN bash docker.run.sh --build
+
+CMD ["bash", "docker.run.sh"]

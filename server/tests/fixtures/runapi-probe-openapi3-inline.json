@@ -1,0 +1,64 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "RunAPI Import Probe OpenAPI3 Inline",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://{{manage}}"
+    }
+  ],
+  "paths": {
+    "/probe/inline": {
+      "get": {
+        "summary": "OpenAPI3 内联 schema 测试",
+        "description": "OpenAPI3 内联 schema 测试",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "description": "状态码说明"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "description": "提示信息说明"
+                    },
+                    "data": {
+                      "type": "object",
+                      "description": "数据对象说明",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "description": "ID说明"
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "名称说明"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "code": 200,
+                  "msg": "success",
+                  "data": {
+                    "id": 1,
+                    "name": "测试名称"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,5 +1,6 @@
 Application/Runtime/
 server/Application/Runtime/
+server/app/Runtime/
 
 web_src/.DS_Store
 web_src/node_modules/
@@ -19,3 +20,14 @@ web_src/*.ntvs*
 web_src/*.njsproj
 web_src/*.sln
 
+showdocdata/
+/server/app/Runtime/mcp_rate_limit
+/fixtime.sh
+/install/install.lock
+
+# PHPUnit
+server/.phpunit.cache/
+server/.phpunit.result.cache
+server/vendor/bin/.phpunit.result.cache
+server/phpunit.xml.bak
+server/composer.phar

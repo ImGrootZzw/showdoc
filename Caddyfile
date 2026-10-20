@@ -1,0 +1,73 @@
+{
+	admin off
+	auto_https off
+}
+
+# ShowDoc: php-cgi(FastCGI) 后端，解决 PHP 内置服务器大文件上传卡死问题
+:{$SHOWDOC_PORT} {
+	root * {$SHOWDOC_ROOT}
+	encode gzip
+
+	# /server 开头的 API（含 /server/index.php?s= 查询参数路由）交给 server/index.php
+	handle_path /server* {
+		rewrite * /server/index.php
+		php_fastcgi 127.0.0.1:{$SHOWDOC_FCGI_PORT}
+	}
+
+	# 个别 PHP 入口文件
+	handle /mcp.php {
+		php_fastcgi 127.0.0.1:{$SHOWDOC_FCGI_PORT}
+	}
+	handle /Public/verifyCode.php {
+		php_fastcgi 127.0.0.1:{$SHOWDOC_FCGI_PORT}
+	}
+
+	# 安装页目录（PHP 页面 + 静态资源）
+	handle /install* {
+		try_files {path} {path}/index.php index.php
+		php_fastcgi 127.0.0.1:{$SHOWDOC_FCGI_PORT}
+	}
+
+	# 静态目录（尾部带 / 且非根目录）：目录存在则服务其 index.html
+	@dir {
+		path */
+		not path /
+	}
+	handle @dir {
+		try_files {path} {path}/index.html
+		file_server
+	}
+
+	# 静态文件：真实存在的文件（不含 .php）
+	@fileexists {
+		file
+		not path *.php
+	}
+	handle @fileexists {
+		file_server
+	}
+
+	# 上传目录里的 .php 等脚本只作静态下载，绝不执行（防上传 webshell）
+	@uploadsphp {
+		file
+		path /Public/Uploads/*
+	}
+	handle @uploadsphp {
+		file_server
+	}
+
+	# 直接访问的 .php 文件（web/index.php、Sqlite/showdoc.db.php 等，保持原执行行为）
+	@phppath {
+		path *.php
+	}
+	handle @phppath {
+		try_files {path} index.php
+		php_fastcgi 127.0.0.1:{$SHOWDOC_FCGI_PORT}
+	}
+
+	# 兜底（SPA 路由、/、/123 项目页…）→ 根 index.php
+	handle {
+		try_files {path} index.php
+		php_fastcgi 127.0.0.1:{$SHOWDOC_FCGI_PORT}
+	}
+}

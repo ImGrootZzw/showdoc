@@ -1,0 +1,90 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "With Request Params Test",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost"
+    }
+  ],
+  "paths": {
+    "/search": {
+      "post": {
+        "summary": "Search",
+        "description": "Search with query params and JSON body",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "页码",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "description": "请求追踪ID",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "keyword": {
+                    "type": "string",
+                    "description": "搜索关键词"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "description": "返回数量"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "description": "总条数"
+                    },
+                    "results": {
+                      "type": "array",
+                      "description": "结果列表",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "description": "记录ID"
+                          },
+                          "title": {
+                            "type": "string",
+                            "description": "标题"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

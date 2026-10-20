@@ -1,0 +1,79 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Nested Ref Test",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost"
+    }
+  ],
+  "paths": {
+    "/nested": {
+      "get": {
+        "summary": "Nested Ref Test",
+        "description": "Deeply nested $ref with descriptions",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Wrapper"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Wrapper": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "请求状态"
+          },
+          "result": {
+            "$ref": "#/components/schemas/OuterObj"
+          }
+        }
+      },
+      "OuterObj": {
+        "type": "object",
+        "description": "外层对象",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "总数"
+          },
+          "items": {
+            "type": "array",
+            "description": "条目列表",
+            "items": {
+              "$ref": "#/components/schemas/InnerItem"
+            }
+          }
+        }
+      },
+      "InnerItem": {
+        "type": "object",
+        "description": "内部条目",
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "description": "条目ID"
+          },
+          "label": {
+            "type": "string",
+            "description": "条目标签"
+          }
+        }
+      }
+    }
+  }
+}

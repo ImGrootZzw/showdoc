@@ -1,154 +1,142 @@
 <?php
+
 namespace Api\Model;
+
 use Api\Model\BaseModel;
+
 /**
  * 
  * @author star7th      
  */
-class PageModel extends BaseModel {
+class PageModel extends BaseModel
+{
 
-    protected $cat_name_id = array();
 
-    //根据内容更新页面
-    //其中cat_name参数特别说明下,传递各格式如 '二级目录/三级目录/四级目录'
-    public function update_by_content($item_id,$page_title,$page_content,$cat_name='',$s_number = 99){
-        $item_id = intval($item_id);
-        if (!$item_id) {
-          return false;
+  //搜索某个项目下的页面
+  public function search($item_id,$cat_id_or_ids = 0 , $keyword = "")
+  {
+    $return_pages = array();
+    $item = D("Item")->where("item_id = '%d' and is_del = 0 ", array($item_id))->find();
+    $map = array('item_id' => intval($item_id), 'is_del' => 0);
+    if (is_array($cat_id_or_ids)) {
+      $ids = array();
+      foreach ($cat_id_or_ids as $id) {
+        $id = intval($id);
+        if ($id > 0) $ids[] = $id;
+      }
+      if (!empty($ids)) {
+        $map['cat_id'] = array('in', $ids);
+      }
+    } else {
+      $cat_id = intval($cat_id_or_ids);
+      if ($cat_id > 0) {
+        $map['cat_id'] = $cat_id;
+      }
+    }
+    $pages = $this->where($map)->order(" s_number asc  ")->select();
+    if (!empty($pages)) {
+      foreach ($pages as $key => &$value) {
+        $page_content = $value['page_content'];
+        if (strpos(strtolower($item['item_name'] . "-" . $value['page_title'] . "  " . $page_content), strtolower($keyword)) !== false) {
+          $value['page_content'] = $page_content;
+          $return_pages[] = $value;
         }
+      }
+    }
+    unset($pages);
+    return $return_pages;
+  }
 
-        if ($this->cat_name_id && isset($this->cat_name_id[$cat_name])) {
-          $cat_id = $this->cat_name_id[$cat_name] ;
-          $cat_name = '' ; //如果已经有缓存了则设置为空
-        }else{
-          $cat_id = 0 ;
-        }
-
-        $catalog_array = explode('/', $cat_name);
-        $cat_name = $catalog_array[0] ;
-        $cat_name_sub = !empty($catalog_array[1])? $catalog_array[1] : '';
-        $cat_name_sub_sub = !empty($catalog_array[2])? $catalog_array[2] : '';
-
-
-        //如果传送了二级目录
-        if ($cat_name) {
-            $cat_name_array = D("Catalog")->where(" item_id = '$item_id' and level = 2 and cat_name = '%s' ",array($cat_name))->find();
-            //如果不存在则新建
-            if (!$cat_name_array) {
-                $add_data = array(
-                    "cat_name" => $cat_name, 
-                    "item_id" => $item_id, 
-                    "addtime" => time(),
-                    "level" => 2 
-                    );
-                D("Catalog")->add($add_data);
-                $cat_name_array = D("Catalog")->where(" item_id = '$item_id' and level = 2 and cat_name = '%s' ",array($cat_name))->find();
-            }
-        }
-
-        //如果传送了三级目录
-        if ($cat_name_sub) {
-            $cat_name_sub_array = D("Catalog")->where(" item_id = '$item_id' and level = 3 and cat_name = '%s'  and parent_cat_id = '%s' ",array($cat_name_sub,$cat_name_array['cat_id']))->find();
-            //如果不存在则新建
-            if (!$cat_name_sub_array) {
-                $add_data = array(
-                    "cat_name" => $cat_name_sub, 
-                    "item_id" => $item_id, 
-                    "parent_cat_id" => $cat_name_array['cat_id'], 
-                    "addtime" => time(),
-                    "level" => 3 
-                    );
-                D("Catalog")->add($add_data);
-                $cat_name_sub_array = D("Catalog")->where(" item_id = '$item_id' and level = 3 and cat_name = '%s' and parent_cat_id = '%s' ",array($cat_name_sub,$cat_name_array['cat_id']))->find();
-            }
-        }
-
-        //如果传送了四级目录
-        if ($cat_name_sub_sub) {
-            $cat_name_sub_sub_array = D("Catalog")->where(" item_id = '$item_id' and level = 4 and cat_name = '%s' and parent_cat_id = '%s' ",array($cat_name_sub_sub,$cat_name_sub_array['cat_id']))->find();
-            //如果不存在则新建
-            if (!$cat_name_sub_sub_array) {
-                $add_data = array(
-                    "cat_name" => $cat_name_sub_sub, 
-                    "item_id" => $item_id, 
-                    "parent_cat_id" => $cat_name_sub_array['cat_id'], 
-                    "addtime" => time(),
-                    "level" => 4 
-                    );
-                D("Catalog")->add($add_data);
-                $cat_name_sub_sub_array = D("Catalog")->where(" item_id = '$item_id' and level = 4 and cat_name = '%s'  and parent_cat_id = '%s' ",array($cat_name_sub_sub,$cat_name_sub_array['cat_id']))->find();
-            }
-        }
-
-        if ($cat_name_array && $cat_name_array['cat_id'] > 0 ) {
-            $cat_id = $cat_name_array['cat_id'] ;
-        }
-
-        if ($cat_name_sub_array && $cat_name_sub_array['cat_id'] > 0 ) {
-            $cat_id = $cat_name_sub_array['cat_id'] ;
-        }
-        if ($cat_name_sub_sub_array && $cat_name_sub_sub_array['cat_id'] > 0 ) {
-            $cat_id = $cat_name_sub_sub_array['cat_id'] ;
-        }
-
-        $this->cat_name_id[$cat_name] = $cat_id ;
-        
-        if ($page_content) {
-            $page_array = D("Page")->where(" item_id = '$item_id' and is_del = 0  and cat_id = '$cat_id'  and page_title ='%s' ",array($page_title))->find();
-            //如果不存在则新建
-            if (!$page_array) {
-                $add_data = array(
-                    "author_username" => "update_by_content", 
-                    "item_id" => $item_id, 
-                    "cat_id" => $cat_id, 
-                    "page_title" => $page_title, 
-                    "page_content" => $page_content, 
-                    "s_number" => $s_number, 
-                    "addtime" => time(),
-                    );
-                $page_id = D("Page")->add($add_data);
-            }else{
-                $page_id = $page_array['page_id'] ;
-                $update_data = array(
-                    "author_username" => "update_by_content", 
-                    "item_id" => $item_id, 
-                    "cat_id" => $cat_id, 
-                    "page_title" => $page_title, 
-                    "page_content" => $page_content, 
-                    "s_number" => $s_number, 
-                    );
-                D("Page")->where(" page_id = '$page_id' ")->save($update_data);
-            }
-        }
-
-        return $page_id ;
+  //根据标题更新页面
+  //其中cat_name参数特别说明下,传递各格式如 '二级目录/三级目录/四级目录'
+  public function update_by_title($item_id, $page_title, $page_content, $cat_name = '', $s_number = 99, $author_uid = 0, $author_username = 'update_by_title')
+  {
+    $item_id = intval($item_id);
+    $s_number = intval($s_number);
+    if (!$item_id) {
+      return false;
     }
 
-   //软删除页面
-   public function softDeletePage($page_id){
-      //放入回收站
-      $login_user = session('login_user');
-      $page = D("Page")->field("item_id,page_title")->where(" page_id = '$page_id' ")->find() ;
-      D("Recycle")->add(array(
-        "item_id" =>$page['item_id'],
-        "page_id" =>$page_id,
-        "page_title" =>$page['page_title'],
-        "del_by_uid" =>$login_user['uid'],
-        "del_by_username" =>$login_user['username'],
-        "del_time" =>time()
-        ));
-      $ret = M("Page")->where(" page_id = '$page_id' ")->save(array("is_del"=>1 ,"addtime"=>time()));
-      return $ret;
-   }
-
-   //删除页面
-   public function deletePage($page_id){
-      $ret = M("Page")->where(" page_id = '$page_id' ")->delete();
-      return $ret;
-   }
-
-   public function deleteFile($file_id){
-        return D("Attachment")->deleteFile($file_id) ;
+    $cat_id = 0;
+    if ($cat_name) {
+      // 用路径的形式（比如'二级目录/三级目录/四级目录'）来保存目录信息并返回最后一层目录的id
+      $cat_id = D("Catalog")->saveCatPath($cat_name, $item_id);
     }
 
+    $this->cat_name_id[$cat_name] = $cat_id;
+
+    if ($page_content) {
+      $page_array = D("Page")->field("page_id")->where(" item_id = '%d' and is_del = 0  and cat_id = '%d'  and page_title ='%s' ", array($item_id, $cat_id, $page_title))->find();
+      //如果不存在则新建
+      if (!$page_array) {
+        $add_data = array(
+          "author_uid" => $author_uid,
+          "author_username" => $author_username,
+          "item_id" => $item_id,
+          "cat_id" => $cat_id,
+          "page_title" => $this->_htmlspecialchars($page_title),
+          "page_content" => $this->_htmlspecialchars($page_content),
+          "s_number" => $s_number,
+          "addtime" => time(),
+        );
+        $page_id = D("Page")->add($add_data);
+      } else {
+        $page_id = $page_array['page_id'];
+        $update_data = array(
+          "author_uid" => $author_uid,
+          "author_username" => $author_username,
+          "item_id" => $item_id,
+          "cat_id" => $cat_id,
+          "page_title" => $this->_htmlspecialchars($page_title),
+          "page_content" => $this->_htmlspecialchars($page_content),
+          "s_number" => $s_number,
+        );
+        D("Page")->where(array('page_id' => $page_id))->save($update_data);
+      }
+    }
+
+    return $page_id;
+  }
+
+  //软删除页面
+  public function softDeletePage($page_id)
+  {
+    $page_id = intval($page_id);
+    //放入回收站
+    $login_user = session('login_user');
+    $page = D("Page")->field("item_id,page_title")->where(array('page_id' => $page_id))->find();
+    D("Recycle")->add(array(
+      "item_id" => $page['item_id'],
+      "page_id" => $page_id,
+      "page_title" => $page['page_title'],
+      "del_by_uid" => $login_user['uid'],
+      "del_by_username" => $login_user['username'],
+      "del_time" => time()
+    ));
+    $ret = M("Page")->where(array('page_id' => $page_id))->save(array("is_del" => 1, "addtime" => time()));
+    return $ret;
+  }
+
+  //删除页面
+  public function deletePage($page_id)
+  {
+    $page_id = intval($page_id);
+    $ret = M("Page")->where(array('page_id' => $page_id))->delete();
+    return $ret;
+  }
+
+  public function deleteFile($file_id)
+  {
+    $file_id = intval($file_id);
+    return D("Attachment")->deleteFile($file_id);
+  }
+
+  private function _htmlspecialchars($str)
+  {
+    if (!$str) {
+      return '';
+    }
+    //之所以先htmlspecialchars_decode是为了防止被htmlspecialchars转义了两次
+    return htmlspecialchars(htmlspecialchars_decode($str));
+  }
 }

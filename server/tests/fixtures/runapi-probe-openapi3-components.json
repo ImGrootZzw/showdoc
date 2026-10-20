@@ -1,0 +1,79 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "RunAPI Import Probe OpenAPI3 Components",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://{{manage}}"
+    }
+  ],
+  "paths": {
+    "/probe/components": {
+      "get": {
+        "summary": "OpenAPI3 components ref 测试",
+        "description": "OpenAPI3 components ref 测试",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProbeResponse"
+                },
+                "example": {
+                  "code": 200,
+                  "msg": "success",
+                  "data": {
+                    "id": 1,
+                    "name": "测试名称"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProbeResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "状态码说明",
+            "title": "状态码说明"
+          },
+          "msg": {
+            "type": "string",
+            "description": "提示信息说明",
+            "title": "提示信息说明"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ProbeData"
+          }
+        }
+      },
+      "ProbeData": {
+        "type": "object",
+        "description": "数据对象说明",
+        "title": "数据对象说明",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "ID说明",
+            "title": "ID说明"
+          },
+          "name": {
+            "type": "string",
+            "description": "名称说明",
+            "title": "名称说明"
+          }
+        }
+      }
+    }
+  }
+}
