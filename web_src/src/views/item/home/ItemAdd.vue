@@ -79,6 +79,14 @@ const kanbanItem = async () => {
   }
 }
 
+// 创建 Excalidraw 手绘图项目
+const excalidrawItem = async () => {
+  const result = await CreateItemModal({ item_type: '7', item_group_id: props.itemGroupId })
+  if (result) {
+    props.callback()
+  }
+}
+
 // 导入文件
 const importFile = async () => {
   const result = await ImportFileModal()
@@ -129,6 +137,12 @@ menuListGroup.value = [
         icon: 'fas fa-columns',
         desc: t('item.kanban_item_desc'),
         method: kanbanItem
+      },
+      {
+        title: t('item.excalidraw_item'),
+        icon: 'fas fa-shapes',
+        desc: t('item.excalidraw_item_desc'),
+        method: excalidrawItem
       }
     ]
   },

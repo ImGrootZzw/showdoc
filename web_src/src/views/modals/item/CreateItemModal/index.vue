@@ -19,6 +19,7 @@
               <a-select-option value="4">{{ $t('item.table_item') }}</a-select-option>
               <a-select-option value="5">{{ $t('item.whiteboard_item') }}</a-select-option>
               <a-select-option value="6">{{ $t('item.kanban_item') }}</a-select-option>
+              <a-select-option value="7">{{ $t('item.excalidraw_item') }}</a-select-option>
             </a-select>
           </a-form-item>
 

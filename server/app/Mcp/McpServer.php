@@ -6,6 +6,7 @@ use App\Mcp\Handler\ItemHandler;
 use App\Mcp\Handler\CatalogHandler;
 use App\Mcp\Handler\PageHandler;
 use App\Mcp\Handler\AttachmentHandler;
+use App\Mcp\Handler\ImportHandler;
 use App\Mcp\Handler\OpenApiHandler;
 use App\Mcp\Handler\KanbanHandler;
 use App\Mcp\Handler\RunapiPageHandler;
@@ -858,6 +859,135 @@ class McpServer
         'required' => [],
       ],
       'handler' => 'attachment',
+    ];
+
+    // 文档导入（PDF / Word / HTML / Markdown）
+    $this->tools['import_pdf'] = [
+      'name' => 'import_pdf',
+      'description' => '导入 PDF 文件为一个内嵌在线阅读页面（自动创建附件并生成页面）。同名页面会被覆盖更新',
+      'inputSchema' => [
+        'type' => 'object',
+        'properties' => [
+          'item_id' => [
+            'type' => 'integer',
+            'description' => '项目ID',
+          ],
+          'cat_id' => [
+            'type' => 'integer',
+            'description' => '目录ID（可选，默认根目录）',
+          ],
+          'file_name' => [
+            'type' => 'string',
+            'description' => '文件名（含 .pdf 扩展名），页面标题取文件名（去扩展名）',
+          ],
+          'file_base64' => [
+            'type' => 'string',
+            'description' => 'PDF 文件的 Base64 编码内容',
+          ],
+        ],
+        'required' => ['item_id', 'file_name', 'file_base64'],
+      ],
+      'handler' => 'import',
+    ];
+
+    $this->tools['import_word'] = [
+      'name' => 'import_word',
+      'description' => '导入 Word 文件（.docx/.doc）为可在线编辑的页面，排版由 OnlyOffice 保留。需要服务端已配置 OnlyOffice 文档服务器。同名页面会被覆盖更新',
+      'inputSchema' => [
+        'type' => 'object',
+        'properties' => [
+          'item_id' => [
+            'type' => 'integer',
+            'description' => '项目ID',
+          ],
+          'cat_id' => [
+            'type' => 'integer',
+            'description' => '目录ID（可选，默认根目录）',
+          ],
+          'file_name' => [
+            'type' => 'string',
+            'description' => '文件名（含 .docx / .doc 扩展名），页面标题取文件名（去扩展名）',
+          ],
+          'file_base64' => [
+            'type' => 'string',
+            'description' => 'Word 文件的 Base64 编码内容',
+          ],
+        ],
+        'required' => ['item_id', 'file_name', 'file_base64'],
+      ],
+      'handler' => 'import',
+    ];
+
+    $this->tools['import_html'] = [
+      'name' => 'import_html',
+      'description' => '导入 HTML 为独立页面（页面正文保存 HTML 源码，前端以沙箱 iframe 渲染，保留样式与脚本）。可直接传 html 字符串，或传 file_base64 文件内容',
+      'inputSchema' => [
+        'type' => 'object',
+        'properties' => [
+          'item_id' => [
+            'type' => 'integer',
+            'description' => '项目ID',
+          ],
+          'cat_id' => [
+            'type' => 'integer',
+            'description' => '目录ID（可选，默认根目录）',
+          ],
+          'page_title' => [
+            'type' => 'string',
+            'description' => '页面标题（可选，缺省时取 file_name 去扩展名）',
+          ],
+          'html' => [
+            'type' => 'string',
+            'description' => 'HTML 源码（与 file_base64 二选一，优先使用本参数）',
+          ],
+          'file_name' => [
+            'type' => 'string',
+            'description' => '文件名（可选，配合 file_base64 使用）',
+          ],
+          'file_base64' => [
+            'type' => 'string',
+            'description' => 'HTML 文件的 Base64 编码内容（与 html 二选一）',
+          ],
+        ],
+        'required' => ['item_id'],
+      ],
+      'handler' => 'import',
+    ];
+
+    $this->tools['import_markdown'] = [
+      'name' => 'import_markdown',
+      'description' => '导入 Markdown 内容为普通页面（等价于 create_page，但支持从 Markdown 文件导入）。同名页面会被覆盖更新',
+      'inputSchema' => [
+        'type' => 'object',
+        'properties' => [
+          'item_id' => [
+            'type' => 'integer',
+            'description' => '项目ID',
+          ],
+          'cat_id' => [
+            'type' => 'integer',
+            'description' => '目录ID（可选，默认根目录）',
+          ],
+          'page_title' => [
+            'type' => 'string',
+            'description' => '页面标题（可选，缺省时取 file_name 去扩展名）',
+          ],
+          'content' => [
+            'type' => 'string',
+            'description' => 'Markdown 内容（与 file_base64 二选一）',
+          ],
+          'file_name' => [
+            'type' => 'string',
+            'description' => '文件名（可选，配合 file_base64 使用）',
+          ],
+          'file_base64' => [
+            'type' => 'string',
+            'description' => 'Markdown 文件的 Base64 编码内容（与 content 二选一）',
+          ],
+        ],
+        'required' => ['item_id'],
+      ],
+      'handler' => 'import',
     ];
 
     // OpenAPI 导入
@@ -2281,6 +2411,9 @@ class McpServer
           break;
         case 'attachment':
           $this->handlers[$name] = new AttachmentHandler();
+          break;
+        case 'import':
+          $this->handlers[$name] = new ImportHandler();
           break;
         case 'openapi':
           $this->handlers[$name] = new OpenApiHandler();

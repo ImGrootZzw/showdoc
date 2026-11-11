@@ -15,7 +15,7 @@
             :data="uploadData"
             class="upload-demo"
             :action="uploadUrl"
-            accept=".zip,.json,.pdf"
+            accept=".zip,.json,.pdf,.html,.htm"
             :before-upload="beforeUpload"
             :show-upload-list="false"
             @change="handleUploadChange"

@@ -187,6 +187,30 @@ class PageController extends BaseController
         $safeName  = $this->sanitizeDownloadName($pageTitle);
         $content   = (string) ($page->page_content ?? '');
 
+        // HTML 页面：正文即 HTML 源码，直接以 .html 下载
+        $extInfo   = json_decode((string) ($page->ext_info ?? ''), true);
+        if (is_array($extInfo) && ($extInfo['page_type'] ?? '') === 'html') {
+            $html = htmlspecialchars_decode($content, ENT_QUOTES);
+            return $this->outputDownloadContent($html, $safeName . '.html', $response, 'text/html; charset=utf-8');
+        }
+
+        // Word 页面：正文是元信息 JSON，实际文件另存，交给 WordController 输出 .docx
+        if (is_array($extInfo) && ($extInfo['page_type'] ?? '') === 'word') {
+            $wordController = new \App\Api\Controller\WordController();
+            return $wordController->download($request, $response);
+        }
+
+        // Excalidraw 手绘图：正文即场景 JSON，下载为 .excalidraw 文件（可直接再导入）
+        if (is_array($extInfo) && ($extInfo['page_type'] ?? '') === 'excalidraw') {
+            $scene = htmlspecialchars_decode($content, ENT_QUOTES);
+            return $this->outputDownloadContent(
+                $scene,
+                $safeName . '.excalidraw',
+                $response,
+                'application/json; charset=utf-8'
+            );
+        }
+
         // PDF 页面：内容为 iframe（PDF.js 阅读器或直链），提取附件 sign 后下载原始 PDF
         if (preg_match('/sign(?:=|%3D)([A-Za-z0-9]+)/i', $content, $m)) {
             $uploadFile = \App\Model\UploadFile::findBySign($m[1]);
@@ -226,9 +250,22 @@ class PageController extends BaseController
     /**
      * 输出文本内容为下载（attachment）
      */
-    private function outputDownloadContent(string $content, string $filename, Response $response): Response
-    {
-        $ext = str_ends_with(strtolower($filename), '.pdf') ? '.pdf' : '.md';
+    private function outputDownloadContent(
+        string $content,
+        string $filename,
+        Response $response,
+        string $contentType = 'text/markdown; charset=utf-8'
+    ): Response {
+        $lowerName = strtolower($filename);
+        if (str_ends_with($lowerName, '.pdf')) {
+            $ext = '.pdf';
+        } elseif (str_ends_with($lowerName, '.html') || str_ends_with($lowerName, '.htm')) {
+            $ext = '.html';
+        } elseif (str_ends_with($lowerName, '.excalidraw')) {
+            $ext = '.excalidraw';
+        } else {
+            $ext = '.md';
+        }
         $asciiFallback = (string) preg_replace('/[^\x20-\x7E]/', '', $filename);
         $asciiFallback = str_replace(['\\', '"'], '_', $asciiFallback);
         if ($asciiFallback === '' || $asciiFallback === $ext) {
@@ -238,7 +275,7 @@ class PageController extends BaseController
         $response->getBody()->write($content);
 
         return $response
-            ->withHeader('Content-Type', 'text/markdown; charset=utf-8')
+            ->withHeader('Content-Type', $contentType)
             ->withHeader('Content-Disposition', 'attachment; filename="' . $asciiFallback . '"; filename*=UTF-8\'\'' . rawurlencode($filename))
             ->withHeader('Content-Length', (string) strlen($content));
     }
@@ -445,6 +482,12 @@ class PageController extends BaseController
 
             if (!$this->checkItemEdit($uid, (int) $page['item_id'])) {
                 return $this->error($response, 10101, '您没有编辑权限');
+            }
+
+            // 未显式传入 ext_info 时保留页面上原有的标记（例如 HTML 页面），
+            // 避免任务勾选、历史恢复等局部保存把页面类型冲掉
+            if (empty($data['ext_info']) && !empty($page['ext_info'])) {
+                $data['ext_info'] = $page['ext_info'];
             }
 
             // 保存历史版本

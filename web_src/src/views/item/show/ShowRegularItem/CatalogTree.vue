@@ -116,7 +116,9 @@ import {
 import CopyCatalogModal from '@/views/modals/catalog/CopyCatalogModal'
 import SortModal from '@/views/modals/catalog/SortModal'
 import EditPageModal from '@/views/modals/page/EditPageModal/index'
+import HtmlEditModal from '@/views/modals/page/HtmlEditModal/index'
 import HistoryModal from '@/views/modals/page/HistoryModal/index'
+import { isHtmlPage, isWordPage } from '@/models/page'
 
 // Props
 interface Props {
@@ -718,12 +720,27 @@ const deleteCatalog = async (catId: number) => {
 
 const handleEditPage = async (node: any) => {
   try {
-    const result = await EditPageModal({
-      itemId: props.itemInfo.item_id,
-      editPageId: node.page_id,
-      copyPageId: 0,
-      catId: node.page_cat_id, // 传入页面所在的目录ID，编辑时选中该目录
-    })
+    // Word 页面由 OnlyOffice 在页面内直接编辑，不能交给 Markdown 编辑器打开，
+    // 否则会把存文档元信息的正文覆盖成 Markdown，导致文档丢失
+    if (isWordPage(node)) {
+      Message.info(t('item.word_edit_in_page'))
+      props.getPageContent?.(node.page_id)
+      return
+    }
+
+    // HTML 页面走源码编辑器，普通页面仍用 Markdown 编辑器
+    const result = isHtmlPage(node)
+      ? await HtmlEditModal({
+          itemId: props.itemInfo.item_id,
+          editPageId: node.page_id,
+          catId: node.page_cat_id || 0,
+        })
+      : await EditPageModal({
+          itemId: props.itemInfo.item_id,
+          editPageId: node.page_id,
+          copyPageId: 0,
+          catId: node.page_cat_id, // 传入页面所在的目录ID，编辑时选中该目录
+        })
 
     if (result) {
       emit('reloadItem')
@@ -736,11 +753,24 @@ const handleEditPage = async (node: any) => {
 // 克隆页面（创建新页面并复制内容）
 const handleClonePage = async (node: any) => {
   try {
-    const result = await EditPageModal({
-      itemId: props.itemInfo.item_id,
-      editPageId: 0,
-      copyPageId: node.page_id, // 传入要复制的页面ID
-    })
+    // Word 页面的文件与页面一一对应，克隆会产生两个页面共用一个文档文件，
+    // 编辑其中一个会同时改变另一个，因此这里直接阻止
+    if (isWordPage(node)) {
+      Message.info(t('item.word_clone_not_supported'))
+      return
+    }
+
+    const result = isHtmlPage(node)
+      ? await HtmlEditModal({
+          itemId: props.itemInfo.item_id,
+          copyPageId: node.page_id,
+          catId: node.page_cat_id || 0,
+        })
+      : await EditPageModal({
+          itemId: props.itemInfo.item_id,
+          editPageId: 0,
+          copyPageId: node.page_id, // 传入要复制的页面ID
+        })
 
     if (result) {
       emit('reloadItem')

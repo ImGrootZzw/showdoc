@@ -416,7 +416,8 @@ const getItemTypeName = (itemType: string | number) => {
     '3': t('item.type_runapi'),
     '4': t('item.type_table'),
     '5': t('item.type_whiteboard'),
-    '6': t('item.type_kanban')
+    '6': t('item.type_kanban'),
+    '7': t('item.type_excalidraw')
   }
   return typeMap[String(itemType)] || t('item.type_regular')
 }

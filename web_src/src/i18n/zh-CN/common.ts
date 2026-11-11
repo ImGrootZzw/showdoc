@@ -31,6 +31,7 @@ export default {
   delete_success: '删除成功',
   delete_failed: '删除失败',
   tips: '提示',
+  retry: '重试',
   confirm_operate: '确认操作',
   copy: '复制',
   copy_success: '复制成功',

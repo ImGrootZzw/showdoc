@@ -389,7 +389,7 @@ class Item
 
         // 开源版：使用单表 page，不支持分表
         $table = 'page';
-        $pageField = 'page_id,page_title,cat_id,page_content,s_number,page_comments';
+        $pageField = 'page_id,page_title,cat_id,page_content,s_number,page_comments,ext_info';
         $catalogField = 'cat_id,cat_name,parent_cat_id,level,s_number';
 
         // 获取所有页面
@@ -577,6 +577,10 @@ class Item
                         's_number'         => (int) ($value['s_number'] ?? 99),
                         'page_comments'    => htmlspecialchars(htmlspecialchars_decode($value['page_comments'] ?? '')),
                     ];
+                    // 保留页面类型标记（如 HTML 页面），旧备份没有该字段则保持默认空值
+                    if (!empty($value['ext_info'])) {
+                        $pageData['ext_info'] = (string) $value['ext_info'];
+                    }
                     $newPageId = Page::addPage($itemId, $pageData);
                     $oldPageId = (int) ($value['page_id'] ?? 0);
                     if ($oldPageId > 0 && $newPageId > 0) {
@@ -601,6 +605,12 @@ class Item
                     $oldPageId = (int) ($value['page_id'] ?? 0);
                     if ($oldPageId > 0 && $newPageId) {
                         $pageIdMap[$oldPageId] = (int) $newPageId;
+                    }
+                    if ($newPageId && !empty($value['ext_info'])) {
+                        DB::table('page')->where('page_id', (int) $newPageId)->update([
+                            'ext_info' => (string) $value['ext_info'],
+                        ]);
+                        \App\Model\DocSearchIndex::indexPage((int) $newPageId);
                     }
                 }
             }

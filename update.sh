@@ -45,6 +45,7 @@ echo "== 增量拷贝代码（保留数据目录）..."
 rsync -a \
     --exclude 'Sqlite/' \
     --exclude 'Public/Uploads/' \
+    --exclude 'server/data/' \
     --exclude 'web_src' --exclude 'mock' --exclude 'tests' \
     --exclude 'tools' --exclude 'documentation' --exclude '.github' \
     --exclude '.git' --exclude '*.bat' --exclude 'router.php' \
@@ -59,6 +60,10 @@ chmod +x "$APP_ROOT/tools/"*.php 2>/dev/null || true
 
 # 恢复写权限（代码覆盖后属主可能变为 root）
 chown -R apache:apache "$APP_ROOT/Public" "$APP_ROOT/Sqlite" 2>/dev/null || true
+# Word 文档存储目录
+mkdir -p "$APP_ROOT/server/data/word"
+chown -R apache:apache "$APP_ROOT/server/data" 2>/dev/null || true
+chmod -R u+rwX "$APP_ROOT/server/data" 2>/dev/null || true
 chmod -R u+w "$APP_ROOT/Public/Uploads" "$APP_ROOT/Sqlite" 2>/dev/null || true
 
 echo "== 重启服务..."

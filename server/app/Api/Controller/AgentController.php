@@ -188,7 +188,7 @@ class AgentController extends BaseController
      * 获取项目类型字符串
      *
      * @param int $itemId
-     * @return string 'regular' | 'single_page' | 'runapi' | 'table' | 'whiteboard' | 'kanban'
+     * @return string 'regular' | 'single_page' | 'runapi' | 'table' | 'whiteboard' | 'kanban' | 'excalidraw'
      */
     private function getItemType(int $itemId): string
     {
@@ -201,7 +201,7 @@ class AgentController extends BaseController
             return 'regular';
         }
 
-        // item_type: 1=常规, 2=单页, 3=RunApi, 4=表格, 5=白板, 6=看板
+        // item_type: 1=常规, 2=单页, 3=RunApi, 4=表格, 5=白板, 6=看板, 7=Excalidraw 手绘图
         $type = (int) ($item->item_type ?? 1);
         switch ($type) {
             case 2:
@@ -214,6 +214,8 @@ class AgentController extends BaseController
                 return 'whiteboard';
             case 6:
                 return 'kanban';
+            case 7:
+                return 'excalidraw';
             default:
                 return 'regular';
         }

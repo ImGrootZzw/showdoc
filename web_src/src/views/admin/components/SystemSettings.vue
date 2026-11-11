@@ -441,6 +441,35 @@
         <!-- 其他配置 -->
         <template #other>
           <div class="tab-content">
+            <!-- OnlyOffice 文档服务器（Word 在线编辑） -->
+            <div class="form-row">
+              <label class="form-label">
+                {{ $t('admin.onlyoffice_url') }}
+                <a-tooltip :title="$t('admin.onlyoffice_url_tips')" placement="top">
+                  <QuestionCircleOutlined class="question-icon" />
+                </a-tooltip>
+              </label>
+              <CommonInput
+                v-model="form.onlyoffice_url"
+                class="form-input"
+                :placeholder="$t('admin.onlyoffice_url_placeholder')"
+              />
+            </div>
+
+            <div class="form-row">
+              <label class="form-label">
+                {{ $t('admin.onlyoffice_jwt_secret') }}
+                <a-tooltip :title="$t('admin.onlyoffice_jwt_secret_tips')" placement="top">
+                  <QuestionCircleOutlined class="question-icon" />
+                </a-tooltip>
+              </label>
+              <CommonInput
+                v-model="form.onlyoffice_jwt_secret"
+                class="form-input"
+                :placeholder="$t('admin.onlyoffice_jwt_secret_placeholder')"
+              />
+            </div>
+
             <!-- 备案号设置（仅中文） -->
             <div v-if="locale === 'zh-CN'" class="form-row">
               <label class="form-label">
@@ -535,6 +564,8 @@ const form = reactive({
   ai_max_message_length: 8000,
   ai_tool_rounds: 20,
   ai_welcome_message: '',
+  onlyoffice_url: '',
+  onlyoffice_jwt_secret: '',
   force_login: '0',
   enable_public_square: '0',
   strong_password_enabled: '0',
@@ -589,6 +620,8 @@ const loadConfig = async () => {
       ? parseInt(String(data.ai_tool_rounds))
       : 20
     form.ai_welcome_message = data.ai_welcome_message || ''
+    form.onlyoffice_url = data.onlyoffice_url || ''
+    form.onlyoffice_jwt_secret = data.onlyoffice_jwt_secret || ''
     form.force_login = normalizeToBinaryString(data.force_login)
     form.enable_public_square = normalizeToBinaryString(data.enable_public_square)
     form.strong_password_enabled = normalizeToBinaryString(data.strong_password_enabled)
@@ -631,6 +664,8 @@ const handleSave = async () => {
       ai_max_message_length: form.ai_max_message_length,
       ai_tool_rounds: form.ai_tool_rounds,
       ai_welcome_message: form.ai_welcome_message,
+      onlyoffice_url: form.onlyoffice_url,
+      onlyoffice_jwt_secret: form.onlyoffice_jwt_secret,
       force_login: form.force_login === '1',
       enable_public_square: form.enable_public_square === '1',
       strong_password_enabled: form.strong_password_enabled === '1',

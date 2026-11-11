@@ -40,7 +40,7 @@
     <!-- 内容容器 -->
     <div class="content-container" :class="{ 'mobile-content': isMobile }">
       <!-- 页面内容区 -->
-      <div class="page-wrapper">
+      <div class="page-wrapper" :class="{ 'html-page-mode': htmlPage }">
         <!-- 页面标题 -->
         <div class="page-title-box">
           <h2 id="doc-title" class="page-title">{{ pageTitle }}</h2>
@@ -61,20 +61,29 @@
         <!-- Markdown 内容 -->
         <div id="page_md_content" class="page_content_main">
           <EditormdEditor
-            v-if="content"
+            v-if="content && !htmlPage"
             :key="`${pageId}-${isFullPage}`"
             v-model="content"
             mode="preview"
             :readonly="itemInfo?.item_edit != 1"
             @task-toggle="handleTaskToggle"
           />
+          <iframe
+            v-else-if="content && htmlPage"
+            :key="`html-${pageId}-${isFullPage}`"
+            class="html-page-frame"
+            :srcdoc="content"
+            :sandbox="HTML_PAGE_SANDBOX"
+            referrerpolicy="no-referrer"
+            title="HTML page"
+          ></iframe>
           <div v-else class="loading">
             <a-spin size="large" :tip="$t('common.loading')" />
           </div>
         </div>
 
         <!-- 复制为 Markdown 图标 -->
-        <a-tooltip :title="$t('page.show.copy_as_markdown')" v-if="content && !isMobile">
+        <a-tooltip :title="$t('page.show.copy_as_markdown')" v-if="content && !isMobile && !htmlPage">
           <div class="copy-markdown-icon">
             <i class="far fa-copy" @click="copyAsMarkdown"></i>
           </div>
@@ -88,7 +97,7 @@
     </div>
 
     <!-- TOC 目录侧边栏（仅 PC 端显示，固定在右侧） -->
-    <div class="toc-side" v-if="pageId && !isMobile && !isFullPage">
+    <div class="toc-side" v-if="pageId && !isMobile && !isFullPage && !htmlPage">
       <Toc />
     </div>
 
@@ -111,7 +120,7 @@ import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
 import request from '@/utils/request'
 import { copyToClipboard } from '@/utils/tools'
-import { renderPageContent } from '@/models/page'
+import { renderPageContent, isHtmlPage, HTML_PAGE_SANDBOX } from '@/models/page'
 import { toggleNthTaskCheckbox } from '@/models/markdown'
 import ItemHeader from '../../components/ItemHeader.vue'
 import ItemHeaderRight from './HeaderRight.vue'
@@ -121,6 +130,7 @@ import EditormdEditor from '@/components/EditormdEditor/ShowdocAdapter.vue'
 import CommonTop from '@/components/CommonTop.vue'
 import Toc from '@/components/Toc.vue'
 import EditPageModal from '@/views/modals/page/EditPageModal/index'
+import HtmlEditModal from '@/views/modals/page/HtmlEditModal/index'
 import AttachmentModal from '@/views/modals/page/AttachmentModal/index'
 
 // Props
@@ -149,6 +159,9 @@ let taskSaveTimer: number | null = null
 const isMobile = computed(() => {
   return window.innerWidth < 1000 || isFullPage.value
 })
+
+// 是否为 HTML 页面（导入 HTML 时写入 ext_info.page_type = html）
+const htmlPage = computed(() => isHtmlPage(pageInfo.value))
 
 // 移动端滚动控制头部显示/隐藏
 const hideHeader = ref(false)
@@ -239,11 +252,18 @@ const handleTaskToggle = async ({ index, checked }: { index: number, checked: bo
 
 const handleEdit = async () => {
   if (pageId.value && props.itemInfo?.item_id) {
-    const result = await EditPageModal({
-      itemId: props.itemInfo.item_id,
-      editPageId: pageId.value,
-      copyPageId: 0
-    })
+    // HTML 页面走源码编辑器，普通页面仍用 Markdown 编辑器
+    const result = htmlPage.value
+      ? await HtmlEditModal({
+          itemId: props.itemInfo.item_id,
+          editPageId: pageId.value,
+          catId: catId.value || 0
+        })
+      : await EditPageModal({
+          itemId: props.itemInfo.item_id,
+          editPageId: pageId.value,
+          copyPageId: 0
+        })
     if (result) {
       // 编辑完成后重新加载页面内容
       await getPageContent(pageId.value)
@@ -495,6 +515,23 @@ onUnmounted(() => {
   border-radius: 0;
   box-shadow: none;
   padding: 10px;
+}
+
+// HTML 页面：内容区放宽，避免内嵌页面被 850px 挤压
+.page-wrapper.html-page-mode {
+  width: 95%;
+  max-width: 1400px;
+}
+
+// HTML 页面渲染容器（srcdoc + sandbox iframe）
+.html-page-frame {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 220px);
+  min-height: 600px;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
 }
 
 // TOC 侧边栏（固定在右侧）

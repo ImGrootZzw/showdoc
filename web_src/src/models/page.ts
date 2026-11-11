@@ -351,5 +351,66 @@ const renderSSEPageContent = (obj: any, globalParams: any = {}): string => {
   return newContent
 }
 
+// ============================================
+// HTML 页面
+// ============================================
+
+// HTML 页面 iframe 的沙箱策略：允许脚本/表单/弹窗/下载，但不允许 same-origin，
+// 避免上传的 HTML 读取 ShowDoc 自身的 cookie / localStorage
+export const HTML_PAGE_SANDBOX =
+  'allow-scripts allow-forms allow-popups allow-modals allow-downloads'
+
+// 判断页面是否为 HTML 页面（导入 HTML 时写入 ext_info.page_type = html）
+export const isHtmlPage = (pageInfo: any): boolean => {
+  if (!pageInfo) return false
+  const extInfo = pageInfo.ext_info ?? pageInfo.extInfo
+  if (!extInfo) return false
+  if (typeof extInfo === 'object') {
+    return extInfo.page_type === 'html'
+  }
+  try {
+    const parsed = JSON.parse(String(extInfo))
+    return parsed?.page_type === 'html'
+  } catch (e) {
+    return false
+  }
+}
+
+// 判断页面是否为 Word 文档（导入 Word 时写入 ext_info.page_type = word）
+export const isWordPage = (pageInfo: any): boolean => {
+  if (!pageInfo) return false
+  const extInfo = pageInfo.ext_info ?? pageInfo.extInfo
+  if (!extInfo) return false
+  if (typeof extInfo === 'object') {
+    return extInfo.page_type === 'word'
+  }
+  try {
+    const parsed = JSON.parse(String(extInfo))
+    return parsed?.page_type === 'word'
+  } catch (e) {
+    return false
+  }
+}
+
+// 判断页面是否为 Excalidraw 手绘图（创建项目时写入 ext_info.page_type = excalidraw）
+export const isExcalidrawPage = (pageInfo: any): boolean => {
+  if (!pageInfo) return false
+  const extInfo = pageInfo.ext_info ?? pageInfo.extInfo
+  if (!extInfo) return false
+  if (typeof extInfo === 'object') {
+    return extInfo.page_type === 'excalidraw'
+  }
+  try {
+    const parsed = JSON.parse(String(extInfo))
+    return parsed?.page_type === 'excalidraw'
+  } catch (e) {
+    return false
+  }
+}
+
+// HTML 页面正文（入库时被 htmlspecialchars 转义，这里还原一次）
+export const getHtmlPageSource = (pageContent: string): string =>
+  unescapeHTML(pageContent || '')
+
 export { unescapeHTML }
 

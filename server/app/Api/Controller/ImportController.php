@@ -54,10 +54,10 @@ class ImportController extends BaseController
         $file = $uploadedFiles['file'];
         $filename = $file->getClientFilename();
 
-        // 检查文件扩展名（只允许 .zip 或 .json 或 .pdf 文件）
+        // 检查文件扩展名（只允许 .zip、.json、.pdf 或 .html 文件）
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (!in_array($ext, ['zip', 'json', 'pdf'], true)) {
-            return $this->error($response, 10101, '只支持上传 ZIP、JSON 或 PDF 格式的文件');
+        if (!in_array($ext, ['zip', 'json', 'pdf', 'html', 'htm'], true)) {
+            return $this->error($response, 10101, '只支持上传 ZIP、JSON、PDF 或 HTML 格式的文件');
         }
 
         $tail = $ext;
@@ -65,6 +65,11 @@ class ImportController extends BaseController
         if ($tail == 'pdf') {
             // PDF 文件处理：保存为附件并自动创建一个内嵌阅读页面
             return $this->importPdfPage($request, $response);
+        }
+
+        if ($tail == 'html' || $tail == 'htm') {
+            // HTML 文件处理：HTML 源码保存为页面正文，前端用沙箱 iframe 渲染
+            return $this->importHtml($request, $response);
         }
 
         if ($tail == 'zip') {
@@ -239,56 +244,146 @@ class ImportController extends BaseController
             }
         }
 
-        // 保存 PDF 为附件（复用统一上传逻辑，落盘 Public/Uploads 并登记 upload_file）
+        // 保存 PDF 并创建内嵌阅读页面（与 MCP 导入共用同一套逻辑）
         $tmpPath = \App\Model\Attachment::getUploadedTmpPath($file);
-        $_files = [
-            'file' => [
-                'name'     => $filename,
-                'type'     => $file->getClientMediaType(),
-                'tmp_name' => $tmpPath,
-                'size'     => $file->getSize(),
-            ],
-        ];
-        $url = \App\Model\Attachment::upload($_files, 'file', $uid, $itemId, 0);
-        if (!$url) {
-            return $this->error($response, 10101, 'PDF 保存失败');
+        if (!$tmpPath || !is_file($tmpPath)) {
+            return $this->error($response, 10101, 'PDF 文件读取失败');
         }
 
-        // 创建内嵌阅读页面（updateByTitle 自动处理转义与同名去重）
-        // 优先使用本地 PDF.js 阅读器（web/pdfjs），带工具栏/缩放/翻页/缩略图，比浏览器内置阅读器更美观
-        $iframeSrc = $url;
-        if (preg_match('/[?&]sign=([A-Za-z0-9]+)/', $url, $m)) {
-            // file 参数相对于 viewer.html（web/pdfjs/web/）解析，需回退三级到站点根再进 server/
-            $viewerFile = '../../../server/?s=/api/attachment/visitFile&sign=' . $m[1];
-            $iframeSrc = '../web/pdfjs/web/viewer.html?file=' . rawurlencode($viewerFile) . '#zoom=page-width';
-        }
-        $safeUrl = htmlspecialchars($iframeSrc, ENT_QUOTES, 'UTF-8');
-        $content = '<iframe src="' . $safeUrl . '" style="width:100%;height:calc(100vh - 150px);min-height:600px;border:1px solid #eee;border-radius:6px;" frameborder="0"></iframe>';
-        $pageId = Page::updateByTitle(
-            $itemId,
-            $pageTitle,
-            $content,
-            '',
-            99,
+        $pageId = \App\Common\Service\DocumentImportService::importPdf(
             $uid,
-            $user['username'] ?? ''
+            (string) ($user['username'] ?? ''),
+            (int) $itemId,
+            $catId,
+            $filename,
+            $tmpPath
         );
         if (!$pageId) {
             return $this->error($response, 10500, '创建页面失败');
         }
 
-        // 指定目录时，校验目录归属后把页面移入该目录
+        return $this->success($response, [
+            'item_id' => $itemId,
+            'page_id' => $pageId,
+        ]);
+    }
+
+    /**
+     * 导入 HTML 文件：将 HTML 源码保存为页面正文
+     *
+     * 路由：/api/import/importHtml（或 /api/import/auto 按扩展名分流）
+     * 参数：
+     * - item_id：项目 ID（可选；不传则按 HTML 文件名自动新建项目）
+     * - cat_id：目标目录 ID（可选，默认根目录）
+     * - file：.html / .htm 文件
+     *
+     * 页面正文保存完整的 HTML 源码，并通过 page.ext_info 标记
+     * {"page_type":"html"}，前端据此使用沙箱 iframe 渲染；
+     * 后续编辑走页面保存接口，会自动生成历史版本。
+     *
+     * @param Request $request
+     * @param Response $response
+     * @return Response
+     */
+    public function importHtml(Request $request, Response $response): Response
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '600M');
+
+        $user = [];
+        if ($error = $this->requireLoginUser($request, $response, $user)) {
+            return $error;
+        }
+
+        $uid    = (int) ($user['uid'] ?? 0);
+        $itemId = (int) $this->getParam($request, 'item_id', 0);
+        $catId  = (int) $this->getParam($request, 'cat_id', 0);
+
+        // 获取上传的文件
+        $uploadedFiles = $request->getUploadedFiles();
+        if (empty($uploadedFiles['file'])) {
+            return $this->error($response, 10101, '请上传文件');
+        }
+        $file = $uploadedFiles['file'];
+        $filename = (string) $file->getClientFilename();
+
+        // 检查扩展名
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if (!in_array($ext, ['html', 'htm'], true)) {
+            return $this->error($response, 10101, '只支持上传 HTML 格式的文件');
+        }
+
+        // 限制文件大小，避免超大 HTML 拖垮页面渲染
+        $maxSize = 10 * 1024 * 1024;
+        if ((int) $file->getSize() > $maxSize) {
+            return $this->error($response, 10101, 'HTML 文件不能超过 10MB');
+        }
+
+        // 页面标题 = HTML 文件名（去扩展名）
+        $pageTitle = pathinfo($filename, PATHINFO_FILENAME);
+        if ($pageTitle === '') {
+            $pageTitle = 'HTML 页面';
+        }
+
+        // 权限检查；未指定项目时按 HTML 文件名自动新建项目
+        if ($itemId > 0) {
+            if (!$this->checkItemEdit($uid, $itemId)) {
+                return $this->error($response, 10302, '没有权限');
+            }
+            Item::deleteCache($itemId);
+        } else {
+            $itemData = [
+                'item_name'        => $pageTitle,
+                'item_domain'      => '',
+                'item_type'        => 1,
+                'item_description' => '',
+                'password'         => FileHelper::getRandStr(),
+                'uid'              => $uid,
+                'username'         => $user['username'] ?? '',
+                'addtime'          => time(),
+            ];
+            $itemId = Item::add($itemData);
+            if ($itemId <= 0) {
+                return $this->error($response, 10500, '创建项目失败');
+            }
+        }
+
+        // 目标目录路径（updateByTitle 按路径创建/匹配目录）
+        $catName = '';
         if ($catId > 0) {
             $cat = Catalog::findByIdAndItemId($catId, $itemId);
-            if ($cat) {
-                DB::table('page')->where('page_id', $pageId)->update(['cat_id' => $catId]);
+            if (!$cat) {
+                return $this->error($response, 10101, '目标目录不存在');
             }
+            $catName = Catalog::getCatPath($catId);
+        }
+
+        // 读取 HTML 源码
+        $tmpPath = \App\Model\Attachment::getUploadedTmpPath($file);
+        if (!$tmpPath || !is_file($tmpPath)) {
+            return $this->error($response, 10101, 'HTML 文件读取失败');
+        }
+        $html = (string) file_get_contents($tmpPath);
+        if (trim($html) === '') {
+            return $this->error($response, 10101, 'HTML 文件内容为空');
+        }
+
+        // 与 MCP 导入共用同一套落库逻辑（BOM 清理、编码转换、ext_info 标记）
+        $pageId = \App\Common\Service\DocumentImportService::importHtml(
+            $uid,
+            (string) ($user['username'] ?? ''),
+            (int) $itemId,
+            $catId,
+            $html,
+            $pageTitle
+        );
+        if (!$pageId) {
+            return $this->error($response, 10500, '创建页面失败');
         }
 
         return $this->success($response, [
             'item_id' => $itemId,
             'page_id' => $pageId,
-            'url'     => $url,
         ]);
     }
 

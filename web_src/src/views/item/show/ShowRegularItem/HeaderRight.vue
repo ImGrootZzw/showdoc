@@ -174,6 +174,8 @@ import { useAppStore } from '@/store'
 import CommonDropdownMenu from '@/components/CommonDropdownMenu.vue'
 import Message from '@/components/Message'
 import EditPageModal from '@/views/modals/page/EditPageModal/index'
+import HtmlEditModal from '@/views/modals/page/HtmlEditModal/index'
+import { isHtmlPage, isWordPage } from '@/models/page'
 import ShareModal from '@/views/modals/item/ShareModal/index'
 import MemberModal from '@/views/modals/item/MemberModal/index'
 import CreateItemModal from '@/views/modals/item/CreateItemModal'
@@ -288,11 +290,24 @@ const handleSliderChange = (value: number) => {
 // Methods
 const handleEdit = async () => {
   if (props.pageId && props.itemInfo?.item_id) {
-    const result = await EditPageModal({
-      itemId: props.itemInfo.item_id,
-      editPageId: props.pageId,
-      copyPageId: 0
-    })
+    // Word 页面在正文区域由 OnlyOffice 直接编辑，不能打开 Markdown 编辑器
+    if (isWordPage(props.pageInfo)) {
+      Message.info(t('item.word_edit_in_page'))
+      return
+    }
+
+    // HTML 页面走源码编辑器，普通页面仍用 Markdown 编辑器
+    const result = isHtmlPage(props.pageInfo)
+      ? await HtmlEditModal({
+          itemId: props.itemInfo.item_id,
+          editPageId: props.pageId,
+          catId: props.pageInfo?.cat_id || 0
+        })
+      : await EditPageModal({
+          itemId: props.itemInfo.item_id,
+          editPageId: props.pageId,
+          copyPageId: 0
+        })
     if (result) {
       emit('editPage')
     }

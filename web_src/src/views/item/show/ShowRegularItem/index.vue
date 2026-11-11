@@ -65,7 +65,7 @@
     </a-drawer>
 
     <!-- 主体内容 -->
-    <div class="doc-container" id="doc-container" :class="widthClass"
+    <div class="doc-container" id="doc-container" :class="[widthClass, { 'html-page-mode': htmlPage }]"
         :style="widthStyle">
       <!-- 左侧目录区 -->
       <div id="left-side" v-if="showLeftSide">
@@ -118,7 +118,7 @@
             </a-tooltip>
             <span class="doc-actions">
               <a-tooltip
-                v-if="pageContent && !isMobile()"
+                v-if="pageContent && !isMobile() && !htmlPage && !wordPage"
                 :title="$t('page.show.copy_as_markdown_tooltip')"
               >
                 <i
@@ -144,14 +144,34 @@
           <div class="doc-body">
             <div class="page-content-main" id="page-content-main">
               <!-- Markdown 内容渲染（纯预览模式） -->
+              <!-- Word 页面：由 OnlyOffice 文档服务器在线编辑（保存由回调写回） -->
+              <WordEditor
+                v-if="currentPageId && wordPage"
+                :key="`word-${currentPageId}`"
+                :page-id="currentPageId"
+              />
+
+              <!-- Markdown 内容渲染（纯预览模式） -->
               <EditormdEditor
-                v-if="currentPageId"
+                v-else-if="currentPageId && !htmlPage"
                 :key="`${currentPageId}-${isFullPage}`"
                 v-model="pageContent"
                 mode="preview"
                 :keyword="searchKeyword"
                 @task-toggle="handleTaskToggle"
               />
+
+              <!-- HTML 页面：源码存于页面正文，用沙箱 iframe 渲染，完整保留自带样式与脚本 -->
+              <iframe
+                v-else-if="currentPageId && htmlPage"
+                :key="`html-${currentPageId}-${isFullPage}`"
+                class="html-page-frame"
+                :class="{ 'is-full-page': isFullPage }"
+                :srcdoc="pageContent"
+                :sandbox="HTML_PAGE_SANDBOX"
+                referrerpolicy="no-referrer"
+                title="HTML page"
+              ></iframe>
 
               <!-- 空项目提示 -->
               <div v-else-if="emptyItem" class="empty-tips">
@@ -187,7 +207,7 @@
       </div>
 
       <!-- 右侧目录区（TOC） -->
-      <div id="right-side" v-if="!isMobile() && !isFullPage">
+      <div id="right-side" v-if="!isMobile() && !isFullPage && !htmlPage && !wordPage">
         <Toc :key="tocKey" />
       </div>
     </div>
@@ -203,7 +223,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
 import { useItemStore } from '@/store'
-import { renderPageContent } from '@/models/page'
+import { renderPageContent, isHtmlPage, isWordPage, HTML_PAGE_SANDBOX } from '@/models/page'
 import { toggleNthTaskCheckbox } from '@/models/markdown'
 import { getItem } from '@/models/item'
 import request from '@/utils/request'
@@ -224,6 +244,7 @@ import AttachmentListModal from '@/views/modals/page/AttachmentListModal/index'
 import PageComment from './components/PageComment.vue'
 import PageFeedback from './components/PageFeedback.vue'
 import Toc from '@/components/Toc.vue'
+import WordEditor from './components/WordEditor.vue'
 
 // Props
 interface Props {
@@ -300,6 +321,12 @@ const isItemEditable = computed(() => {
   // 使用弱等于判断，因为后端可能返回字符串
   return itemInfo.value?.item_edit == 1
 })
+
+// 是否为 HTML 页面（导入 HTML 时写入 ext_info.page_type = html）
+const htmlPage = computed(() => isHtmlPage(pageInfo.value))
+
+// 是否为 Word 文档页面（由 OnlyOffice 在线编辑）
+const wordPage = computed(() => isWordPage(pageInfo.value))
 
 // Methods
 const handleGetPageContent = async (pageId: number) => {
@@ -680,6 +707,30 @@ onUnmounted(() => {
   #content-side {
     max-width: var(--content-side-max-width, 1200px);
   }
+}
+
+// HTML 页面：内容区默认放开宽度，避免内嵌页面被 900px 挤压
+.doc-container.html-page-mode {
+  max-width: 1900px;
+
+  #content-side {
+    max-width: none;
+  }
+}
+
+// HTML 页面渲染容器（srcdoc + sandbox iframe）
+.html-page-frame {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 160px);
+  min-height: 600px;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.html-page-frame.is-full-page {
+  height: calc(100vh - 96px);
 }
 
 #left-side {

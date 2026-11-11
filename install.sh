@@ -190,7 +190,10 @@ echo "== 设置目录权限 ($APP_USER)"
 chown -R "$APP_USER":"$APP_USER" "$APP_ROOT/Public" "$APP_ROOT/Sqlite"
 chmod -R u+rwX,g+rX,o+rX "$APP_ROOT/Public" "$APP_ROOT/Sqlite"
 chmod -R u+w "$APP_ROOT/Public/Uploads" "$APP_ROOT/Sqlite"
-[ -d "$APP_ROOT/server/data" ] && chown -R "$APP_USER":"$APP_USER" "$APP_ROOT/server/data" || true
+# Word 文档存储目录（server/data/word，不在静态目录中）
+mkdir -p "$APP_ROOT/server/data/word"
+chown -R "$APP_USER":"$APP_USER" "$APP_ROOT/server/data"
+chmod -R u+rwX "$APP_ROOT/server/data"
 
 
 echo ""

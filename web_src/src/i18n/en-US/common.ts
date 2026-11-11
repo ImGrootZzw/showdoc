@@ -27,6 +27,7 @@ export default {
   modify_success: 'Modify success',
   op_failed: 'Operation failed',
   tips: 'Tips',
+  retry: 'Retry',
   confirm_operate: 'Confirm operation',
   copy: 'Copy',
   copy_success: 'Copied',

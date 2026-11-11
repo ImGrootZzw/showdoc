@@ -51,6 +51,9 @@ class AdminSettingController extends BaseController
         $aiMaxMessageLength = (int) $this->getParam($request, 'ai_max_message_length', 8000);
         $aiToolRounds = (int) $this->getParam($request, 'ai_tool_rounds', 20);
         $aiWelcomeMessage = $this->getParam($request, 'ai_welcome_message', '');
+        // 用 null 作默认值：只有请求里确实带了这两个参数才覆盖，避免旧客户端保存设置时把它们清空
+        $onlyOfficeUrlRaw = $this->getParam($request, 'onlyoffice_url', null);
+        $onlyOfficeJwtSecretRaw = $this->getParam($request, 'onlyoffice_jwt_secret', null);
         $forceLoginRaw = $this->getParam($request, 'force_login', null);
         $enablePublicSquareRaw = $this->getParam($request, 'enable_public_square', null);
         $strongPasswordEnabledRaw = $this->getParam($request, 'strong_password_enabled', null);
@@ -98,6 +101,13 @@ class AdminSettingController extends BaseController
         Options::set("ai_max_message_length", $aiMaxMessageLength);
         Options::set("ai_tool_rounds", $aiToolRounds);
         Options::set("ai_welcome_message", $aiWelcomeMessage);
+        // OnlyOffice 文档服务器（Word 在线编辑）
+        if ($onlyOfficeUrlRaw !== null) {
+            Options::set("onlyoffice_url", rtrim(trim((string) $onlyOfficeUrlRaw), '/'));
+        }
+        if ($onlyOfficeJwtSecretRaw !== null) {
+            Options::set("onlyoffice_jwt_secret", trim((string) $onlyOfficeJwtSecretRaw));
+        }
         Options::set("show_watermark", $showWatermark);
         Options::set("force_login", $forceLogin);
         Options::set("enable_public_square", $enablePublicSquare);
@@ -162,6 +172,8 @@ class AdminSettingController extends BaseController
         $aiMaxMessageLength = (int) Options::get("ai_max_message_length", 8000);
         $aiToolRounds = (int) Options::get("ai_tool_rounds", 20);
         $aiWelcomeMessage = Options::get("ai_welcome_message");
+        $onlyOfficeUrl = Options::get("onlyoffice_url");
+        $onlyOfficeJwtSecret = Options::get("onlyoffice_jwt_secret");
         $forceLogin = Options::get("force_login");
         $enablePublicSquare = Options::get("enable_public_square");
         $strongPasswordEnabled = Options::get("strong_password_enabled");
@@ -195,6 +207,8 @@ class AdminSettingController extends BaseController
             "ai_max_message_length" => $aiMaxMessageLength,
             "ai_tool_rounds" => $aiToolRounds,
             "ai_welcome_message" => $aiWelcomeMessage,
+            "onlyoffice_url" => $onlyOfficeUrl,
+            "onlyoffice_jwt_secret" => $onlyOfficeJwtSecret,
             "force_login" => $forceLogin,
             "enable_public_square" => $enablePublicSquare,
             "strong_password_enabled" => $strongPasswordEnabled,

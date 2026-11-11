@@ -977,6 +977,22 @@ class ItemController extends BaseController
             \App\Model\Page::addPage($itemId, $pageData);
         }
 
+        // 如果是 Excalidraw 手绘图项目，创建默认页并标记页面类型
+        if ($itemType == 7) {
+            $pageData = [
+                'author_uid'      => $uid,
+                'author_username' => $username,
+                'page_title'      => $itemName,
+                'item_id'         => $itemId,
+                'cat_id'          => 0,
+                // 空场景：Excalidraw 场景 JSON 由前端在首次保存时写入
+                'page_content'    => '',
+                'ext_info'        => json_encode(['page_type' => 'excalidraw'], JSON_UNESCAPED_UNICODE),
+                'addtime'         => time(),
+            ];
+            \App\Model\Page::addPage($itemId, $pageData);
+        }
+
         // 如果是看板项目，创建板面 page 并默认开启评论
         if ($itemType == 6) {
             $defaultContent = json_encode([

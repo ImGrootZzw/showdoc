@@ -30,6 +30,18 @@
       </div>
     </a-tooltip>
 
+    <a-tooltip :title="$t('item.import_html')" placement="top">
+      <div class="action-item" @click="handleImportHtml">
+        <i class="far fa-file-code"></i>
+      </div>
+    </a-tooltip>
+
+    <a-tooltip :title="$t('item.import_word')" placement="top">
+      <div class="action-item" @click="handleImportWord">
+        <i class="far fa-file-word"></i>
+      </div>
+    </a-tooltip>
+
     <!-- 更多菜单 - 使用公共组件 -->
     <div class="action-item more-action-wrapper">
       <CommonDropdownMenu
@@ -57,8 +69,12 @@ import PromptModal from '@/components/PromptModal/index'
 import RecycleModal from '@/views/modals/item/RecycleModal/index'
 import ImportMdModal from '@/views/modals/item/ImportMdModal/index'
 import ImportPdfModal from '@/views/modals/item/ImportPdfModal/index'
+import ImportHtmlModal from '@/views/modals/item/ImportHtmlModal/index'
+import ImportWordModal from '@/views/modals/item/ImportWordModal/index'
 import HistoryModal from '@/views/modals/page/HistoryModal/index'
 import EditPageModal from '@/views/modals/page/EditPageModal/index'
+import HtmlEditModal from '@/views/modals/page/HtmlEditModal/index'
+import { isHtmlPage } from '@/models/page'
 import InterfaceListModal from '@/views/modals/page/InterfaceListModal/index'
 import CommonDropdownMenu from '@/components/CommonDropdownMenu.vue'
 import type { DropdownMenuItem } from '@/components/CommonDropdownMenu.vue'
@@ -165,11 +181,17 @@ const handleClonePage = async () => {
   }
 
   try {
-    const result = await EditPageModal({
-      itemId: props.itemId || 0,
-      editPageId: 0,
-      copyPageId: props.pageId
-    })
+    const result = isHtmlPage(props.pageInfo)
+      ? await HtmlEditModal({
+          itemId: props.itemId || 0,
+          copyPageId: props.pageId,
+          catId: props.pageInfo?.cat_id || 0
+        })
+      : await EditPageModal({
+          itemId: props.itemId || 0,
+          editPageId: 0,
+          copyPageId: props.pageId
+        })
 
     if (result) {
       emit('reloadItem')
@@ -222,6 +244,40 @@ const handleImportPdf = async () => {
     }
   } catch (error) {
     console.error('打开导入 PDF 弹窗失败:', error)
+  }
+}
+
+const handleImportWord = async () => {
+  if (!props.itemId) {
+    Message.info(t('common.please_select_item'))
+    return
+  }
+
+  try {
+    const result = await ImportWordModal({ itemId: props.itemId })
+
+    if (result) {
+      emit('reloadItem')
+    }
+  } catch (error) {
+    console.error('打开导入 Word 弹窗失败:', error)
+  }
+}
+
+const handleImportHtml = async () => {
+  if (!props.itemId) {
+    Message.info(t('common.please_select_item'))
+    return
+  }
+
+  try {
+    const result = await ImportHtmlModal({ itemId: props.itemId })
+
+    if (result) {
+      emit('reloadItem')
+    }
+  } catch (error) {
+    console.error('打开导入 HTML 弹窗失败:', error)
   }
 }
 

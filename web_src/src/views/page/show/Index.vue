@@ -28,14 +28,14 @@
     <!-- 内容容器 -->
     <div class="content-wrapper" :class="{ 'mobile-wrapper': isMobile }">
       <!-- 文档容器 -->
-      <div class="doc-container" id="doc-container">
+      <div class="doc-container" :class="{ 'html-page-mode': htmlPage, 'excalidraw-page-mode': excalidrawPage }" id="doc-container">
         <!-- 页面标题 -->
         <div class="doc-title-box">
           <h2 id="doc-title">{{ pageTitle }}</h2>
           <div class="title-actions">
             <!-- 复制为 Markdown 按钮 -->
             <a-tooltip
-              v-if="!isMobile && content"
+              v-if="!isMobile && content && !htmlPage && !excalidrawPage"
               :title="t('page.show.copy_as_markdown_tooltip')"
             >
               <i
@@ -58,10 +58,37 @@
         <div id="page_md_content" class="page_content_main">
           <!-- Markdown 内容渲染（纯预览模式） -->
           <EditormdEditor
-            v-if="pageId && content"
+            v-if="pageId && content && !htmlPage"
             :key="editorKey"
             v-model="content"
             mode="preview"
+          />
+
+          <!-- HTML 页面：沙箱 iframe 渲染 -->
+          <iframe
+            v-else-if="pageId && content && htmlPage"
+            :key="`html-${editorKey}`"
+            class="html-page-frame"
+            :srcdoc="content"
+            :sandbox="HTML_PAGE_SANDBOX"
+            referrerpolicy="no-referrer"
+            title="HTML page"
+          ></iframe>
+
+          <!-- Excalidraw 手绘图：只读渲染画布 -->
+          <ExcalidrawViewer
+            v-else-if="pageId && content && excalidrawPage"
+            :key="`excalidraw-${editorKey}`"
+            :scene="content"
+          />
+
+          <!-- Word 页面：只读方式打开 OnlyOffice 编辑器 -->
+          <WordEditor
+            v-else-if="pageId && wordPage"
+            :key="`word-${editorKey}`"
+            :page-id="pageId"
+            :unique-key="uniqueKey"
+            readonly
           />
         </div>
 
@@ -74,7 +101,7 @@
     </div>
 
     <!-- TOC 目录 (PC 端，固定在右侧) -->
-    <div class="toc-side" v-if="pageId && content && !isMobile && showToc && !isFullPage">
+    <div class="toc-side" v-if="pageId && content && !isMobile && showToc && !isFullPage && !htmlPage && !excalidrawPage">
       <Toc />
     </div>
   </div>
@@ -88,8 +115,10 @@ import { message } from 'ant-design-vue'
 // 引入 ShowDoc 编辑器适配器（包装底层 EditormdEditor 组件）
 // 适配器提供了 ShowDoc 特定的默认配置和事件处理
 import EditormdEditor from '@/components/EditormdEditor/ShowdocAdapter.vue'
+import ExcalidrawViewer from './components/ExcalidrawViewer.vue'
+import WordEditor from '@/views/item/show/ShowRegularItem/components/WordEditor.vue'
 import Toc from '@/components/Toc.vue'
-import { renderPageContent, unescapeHTML } from '@/models/page'
+import { renderPageContent, unescapeHTML, isHtmlPage, isExcalidrawPage, isWordPage, HTML_PAGE_SANDBOX } from '@/models/page'
 import request from '@/utils/request'
 import { copyToClipboard } from '@/utils/tools'
 
@@ -100,6 +129,7 @@ const { t } = useI18n()
 const isMobile = ref(false)
 const content = ref('')
 const pageTitle = ref('')
+const uniqueKey = ref('')
 const pageId = ref(0)
 const itemId = ref(0)
 const catId = ref(0)
@@ -108,6 +138,9 @@ const showFullPageBtn = ref(true)
 const showToc = ref(true)
 const errorMessage = ref('')
 const isFullPage = ref(false) // 全屏模式
+const htmlPage = ref(false) // 是否为 HTML 页面
+const excalidrawPage = ref(false) // 是否为 Excalidraw 手绘图
+const wordPage = ref(false) // 是否为 Word 文档
 const editorKey = ref(0) // 用于强制重新挂载编辑器
 const hideHeader = ref(false) // 移动端隐藏头部
 const _lastScrollTop = ref(0) // 记录上次滚动位置
@@ -149,6 +182,8 @@ const getPageContent = async () => {
     return
   }
 
+  uniqueKey.value = unique_key || ''
+
   try {
     const url = unique_key ? '/api/page/infoByKey' : '/api/page/info'
     const params = {
@@ -168,6 +203,9 @@ const getPageContent = async () => {
 
       content.value = renderPageContent(raw)
       pageTitle.value = data.data.page_title
+      htmlPage.value = isHtmlPage(data.data)
+      excalidrawPage.value = isExcalidrawPage(data.data)
+      wordPage.value = isWordPage(data.data)
       pageId.value = data.data.page_id
       itemId.value = data.data.item_id || 0
       catId.value = data.data.cat_id || 0
@@ -456,6 +494,30 @@ onBeforeUnmount(() => {
   min-height: 500px;
   margin: 0 auto;
   transition: all 0.15s ease;
+}
+
+// HTML 页面：内容区放宽，避免内嵌页面被 850px 挤压
+.doc-container.html-page-mode {
+  width: 95%;
+  max-width: 1400px;
+}
+
+// Excalidraw 手绘图：画布需要更大空间
+.doc-container.excalidraw-page-mode {
+  width: 95%;
+  max-width: 1600px;
+  padding: 16px;
+}
+
+// HTML 页面渲染容器（srcdoc + sandbox iframe）
+.html-page-frame {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 220px);
+  min-height: 600px;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
 }
 
 // TOC 侧边栏（固定在右侧）

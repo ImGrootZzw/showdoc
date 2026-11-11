@@ -181,7 +181,8 @@ const itemTypeOptions = computed(() => [
   { label: t('admin.runapi_item'), value: '3' },
   { label: t('admin.table_item'), value: '4' },
   { label: t('admin.whiteboard_item'), value: '5' },
-  { label: t('admin.kanban_item'), value: '6' }
+  { label: t('admin.kanban_item'), value: '6' },
+  { label: t('admin.excalidraw_item'), value: '7' }
 ])
 
 const privacyTypeOptions = computed(() => [

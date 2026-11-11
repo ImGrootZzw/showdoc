@@ -21,6 +21,7 @@ web_src/*.njsproj
 web_src/*.sln
 
 showdocdata/
+server/data/
 /server/app/Runtime/mcp_rate_limit
 /fixtime.sh
 /install/install.lock
@@ -31,3 +32,13 @@ server/.phpunit.result.cache
 server/vendor/bin/.phpunit.result.cache
 server/phpunit.xml.bak
 server/composer.phar
+
+# 本地数据库（含实际项目数据，不入库）
+Sqlite/showdoc.db.php
+Sqlite/showdoc.db
+
+# 客户服务器资料（非项目代码）
+咨议-项目服务器清单*
+
+# Vite 构建临时文件
+web_src/vite.config.ts.timestamp-*.mjs

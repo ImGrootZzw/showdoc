@@ -15,12 +15,57 @@ use Illuminate\Database\Capsule\Manager as DB;
 class DocSearchIndex
 {
     /**
-     * 将 markdown 内容清洗为纯文本（用于索引与搜索片段展示）
+     * 获取页面 ext_info 中的 page_type（html / excalidraw / 空）
+     */
+    private static function getPageType($extInfo): string
+    {
+        if (empty($extInfo)) {
+            return '';
+        }
+        $data = is_array($extInfo) ? $extInfo : json_decode((string) $extInfo, true);
+        return is_array($data) ? (string) ($data['page_type'] ?? '') : '';
+    }
+
+    /**
+     * 从 Excalidraw 场景 JSON 中提取可见文字（元素文本 + 分组名不参与），用于搜索索引
+     */
+    private static function excalidrawToPlainText(string $content): string
+    {
+        $json = html_entity_decode($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $scene = json_decode($json, true);
+        if (!is_array($scene) || empty($scene['elements']) || !is_array($scene['elements'])) {
+            return '';
+        }
+
+        $texts = [];
+        foreach ($scene['elements'] as $element) {
+            if (!is_array($element)) {
+                continue;
+            }
+            // 已删除元素不参与搜索
+            if (!empty($element['isDeleted'])) {
+                continue;
+            }
+            $text = (string) ($element['text'] ?? '');
+            if ($text !== '') {
+                $texts[] = $text;
+            }
+            // 容器内嵌文本（如矩形里的文字）放在 containerId 对应的元素上，这里已一并覆盖
+        }
+
+        $plain = implode(' ', $texts);
+        $plain = preg_replace('/\s+/u', ' ', $plain) ?? $plain;
+        return trim($plain);
+    }
+
+    /**
+     * 将页面内容清洗为纯文本（用于索引与搜索片段展示）
      *
      * @param string $content 原始内容（可能为压缩存储）
+     * @param bool $isHtml 是否为 HTML 页面（先还原实体并去掉脚本/样式）
      * @return string 纯文本
      */
-    public static function toPlainText(string $content): string
+    public static function toPlainText(string $content, bool $isHtml = false): string
     {
         if ($content === '') {
             return '';
@@ -30,6 +75,16 @@ class DocSearchIndex
         $decoded = \App\Common\Helper\ContentCodec::decompress($content);
         if ($decoded !== '' && $decoded !== $content) {
             $content = $decoded;
+        }
+
+        if ($isHtml) {
+            // HTML 页面正文在入库时经过一次 htmlspecialchars 转义，先还原实体
+            $content = html_entity_decode($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // 脚本、样式、注释不参与搜索
+            $content = preg_replace('/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/i', ' ', $content) ?? $content;
+            $content = preg_replace('/<!--[\s\S]*?-->/', ' ', $content) ?? $content;
+            // 标题/段落等块级标签换成空白，避免文字粘连
+            $content = preg_replace('/<(br|\/p|\/div|\/li|\/tr|\/h[1-6])\b[^>]*>/i', ' ', $content) ?? $content;
         }
 
         // 去掉代码块围栏
@@ -81,7 +136,20 @@ class DocSearchIndex
                 $itemName = (string) ($item->item_name ?? '');
             }
 
-            $content = self::toPlainText((string) ($page->page_content ?? ''));
+            $pageType = self::getPageType($page->ext_info ?? '');
+            if ($pageType === 'excalidraw') {
+                // 手绘图：只索引画布上的文字，避免整段场景 JSON 进入搜索
+                $content = self::excalidrawToPlainText((string) ($page->page_content ?? ''));
+            } elseif ($pageType === 'word') {
+                // Word 页面：正文只是元信息 JSON，索引文档标题即可
+                $meta = json_decode(html_entity_decode((string) ($page->page_content ?? ''), ENT_QUOTES), true);
+                $content = is_array($meta) ? trim((string) ($meta['title'] ?? '')) : '';
+            } else {
+                $content = self::toPlainText(
+                    (string) ($page->page_content ?? ''),
+                    $pageType === 'html'
+                );
+            }
 
             DB::table('doc_search_index')
                 ->updateOrInsert(
